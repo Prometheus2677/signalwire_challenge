@@ -1,0 +1,115 @@
+<div class="container">
+  <h1>SignalWire Challenge API</h1>
+  <p>Test the ticket creation API with the form below.</p>
+
+  <form id="ticketForm">
+    <div class="form-group">
+      <label for="user_id">User ID (required, numeric):</label>
+      <input type="number" id="user_id" name="user_id" placeholder="1234" required>
+    </div>
+
+    <div class="form-group">
+      <label for="title">Title (required):</label>
+      <input type="text" id="title" name="title" placeholder="Bug report" required>
+    </div>
+
+    <div class="form-group">
+      <label for="tags">Tags (optional, comma-separated, max 4):</label>
+      <input type="text" id="tags" name="tags" placeholder="bug, urgent, frontend">
+      <small>Enter tags separated by commas. Maximum 4 tags allowed.</small>
+    </div>
+
+    <button type="submit">Create Ticket</button>
+  </form>
+
+  <div id="response" class="response" style="display: none;"></div>
+
+  <div class="debug-links">
+    <h3>Debug & Information:</h3>
+    <a href="/debug/tickets" target="_blank">View All Tickets (JSON)</a>
+    <a href="/debug/tags" target="_blank">View Tag Counts (JSON)</a>
+    <a href="/up" target="_blank">Health Check</a>
+  </div>
+
+  <div style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 4px;">
+    <h3>API Information:</h3>
+    <p><strong>Endpoint:</strong> POST /api/v1/tickets</p>
+    <p><strong>Requirements:</strong></p>
+    <ul>
+      <li>user_id: Required, must be numeric</li>
+      <li>title: Required, cannot be empty</li>
+      <li>tags: Optional array, maximum 4 items</li>
+    </ul>
+    <p><strong>Example curl command:</strong></p>
+    <pre style="background: #e9ecef; padding: 10px; border-radius: 4px; overflow-x: auto;">curl -X POST http://localhost:3000/api/v1/tickets \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 1234, "title": "My title", "tags": ["tag1", "tag2"]}'</pre>
+  </div>
+</div>
+
+<script>
+document.getElementById('ticketForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const responseDiv = document.getElementById('response');
+  const formData = new FormData(this);
+  
+  // Parse tags
+  const tagsInput = formData.get('tags');
+  const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+  
+  // Validate tags count
+  if (tags.length >= 5) {
+    responseDiv.className = 'response error';
+    responseDiv.textContent = 'Error: Maximum 4 tags allowed';
+    responseDiv.style.display = 'block';
+    return;
+  }
+  
+  const payload = {
+    user_id: parseInt(formData.get('user_id')),
+    title: formData.get('title'),
+    tags: tags
+  };
+  
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Add CSRF token if it exists
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken.content;
+    }
+
+    const response = await fetch('/api/v1/tickets', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.text();
+    
+    if (response.ok) {
+      responseDiv.className = 'response success';
+      responseDiv.textContent = `Success (${response.status}):\n${result}`;
+    } else {
+      responseDiv.className = 'response error';
+      responseDiv.textContent = `Error (${response.status}):\n${result}`;
+    }
+    
+    responseDiv.style.display = 'block';
+    
+    // Clear form on success
+    if (response.ok) {
+      this.reset();
+    }
+    
+  } catch (error) {
+    responseDiv.className = 'response error';
+    responseDiv.textContent = `Network Error:\n${error.message}`;
+    responseDiv.style.display = 'block';
+  }
+});
+</script>
